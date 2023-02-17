@@ -1,0 +1,150 @@
+@startuml
+
+title
+..= MPC (Multi-Party Computation)..
+..== DKG (Distributed Key Generation)..
+
+<i>Distributed Key Generation using Pederson Verifiable Secret Sharing</i>
+<i>NOTE: Demonstrating a setup of 2-of-3 scheme TSS</i>
+
+
+
+t = 1 (at least 2 parties are required to allow any operation)
+n = 3 (total of 3 parties have control over the private key)
+
+end title
+
+autonumber
+
+participant "Party 1" as p1
+participant "Cypherock Server" as server
+participant "Party 2" as p2
+participant "Party 3" as p3
+
+hnote across
+All parties agree on a specific HD Key derivation path
+
+NOTE: It is important that the derivation path is different from any Blockchain defined derivation paths. So to
+ensure safety of parties personal funds on the selected wallet.
+end note
+...
+
+== Initialize MPC Group & Distribute Party identifier ==
+
+p1 <-> server: Initiate a MPC group request
+note left of server
+  The MPC group creation is opened via some authenticated
+  access mechanism for others to join.
+
+  Once every member has joined, the initiator will give a
+  confirmation to proceed. There can a time window for
+  every MPC group creation request.
+end note
+
+hnote across
+  All parties are assigned unique identifier starting from 1 going till n.
+  This can be mapped with each unique device id for one MPC Group.
+  This means, one device can only participate once in a given MPC Group.
+end note
+
+note right of p1
+  identifier = 1
+end note
+
+note right of p2
+  identifier = 2
+end note
+
+note right of p3
+  identifier = 3
+end note
+...
+
+== Initializing & Sharing SSS polynomial coefficients (cryptically) ==
+
+p1 -> p1: Choose a t-random values on\n the curve = a1, a2, ..., at\n (here, a1 only)
+note left of p1
+  Use random_generator()
+  of device
+end note
+
+p1 -> p1: Derives its private key at the\n decided derivation path\n a0 = Private Key
+' p2 -> p2: Derives its private key at the\n decided derivation path
+' p3 -> p3: Derives its private key at the\n decided derivation path
+
+p1 -> p1: Compute g^a0, g^a1, ...., g^at\n (here, g^a0, g^a1)
+note left of p1
+  The coefficients are multiplied to the Generator
+  point of the Curve and broadcasted in the Group
+  for use in later steps of verification.
+end note
+
+hnote over p2, p3
+  Party 2 and 3 choose t random values
+  They also perform similar calculation with their secret values
+end note
+
+p1 <-> server: Request a temporary authenticated session for the MPC Group
+note left of server
+  The other parties will also generate a temporary session to share
+  computed value with their coefficients.
+end note
+
+p1 -> server: Send g^a0, g^a1, ...., g^at\n (here, g^a0, g^a1)
+p2 -> server: Send g^b0, g^b1, ...., g^bt\n (here, g^b0, g^b1)
+p3 -> server: Send g^c0, g^c1, ...., g^ct\n (here, g^c0, g^c1)
+
+hnote across
+  At this point, each party can generate the distributed public key as follows:
+
+  Public Key = (g^a0)*(g^b0)*(g^c0)
+end note
+
+...
+
+== Commitment sharing and Verification of Party 1 by Party 2==
+
+p1 <-> p2: Establish a Secure and Authenticated channel
+hnote across
+  The secure channel between parties is tunneled by the Cypherock server as a mere mediator
+
+  A secure channel will enable an asynchronous communication, removing the requirement of Pary 1 & Pary 2 being online at the same.
+  A persistent session is required with a set lifetime of the session.
+end note
+
+p1 -> p1: Compute commitment for Party 2
+note left of p1
+  Compute: c = (a0 + a1*m) mod q
+  m = 2 (i.e., verifier identifier = 2)
+  a0 = Private Key of Party 1
+  a1 is the random number for SSS of Party 1
+  q is the EC parameter
+  c is the commitment by Party 1 for Party 2
+
+  ec_addition, ec_multiplication are used
+end note
+
+p1 -> p2: Send 'c' over the secure channel
+
+server -> p2: Receive the values of\n g^a0, g^a1
+p2 -> p2: Verify the commitment sent by Party 1
+note right of p2
+  Compute: val = (g^a0)*(g^a1)^m mod q
+  m = 2 (i.e., verifier identifier = 2)
+  Makes sure that val == g^c
+end note
+
+alt Commitment verification success
+  hnote across #LightGreen: Continue with the process
+else Commitment verification failed by more than 1 parties (> t)
+  hnote across #Red: Verification failed, continue without Party 1
+else Commitment verification failed by 1 party (<= t)
+  p1 -> p1: Regenerate commitment for complaining parties
+  p1 -> server: Broadcast the commitments for verification in public
+  alt Any verification fails
+    hnote across: Party 1 eliminated from the MPC Group
+  end
+end
+
+
+@enduml
