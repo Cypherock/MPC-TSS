@@ -1,8 +1,9 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef MPC_UTILS_H
+#define MPC_UTILS_H
 #include <stdint.h>
 #include "config.h"
 #if USE_FIRMWARE == 0
+#include <stdio.h>
 #include "bip32.h"
 
 #define print_array(arr, size, ...)              \
@@ -17,8 +18,6 @@ extern char title[100];
 void print_hex_array(const char *text,
                      const uint8_t *arr,
                      const uint8_t length);
-
-void printout_struct(void *invar, char *structname);
 
 void derive_hdnode_from_path(const uint32_t *path,
                              const size_t path_length,

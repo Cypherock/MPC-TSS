@@ -11,6 +11,7 @@
 #endif
 
 char *progname = NULL;
+uint8_t msg[]  = {1, 2, 3, 4, 5};
 
 #if USE_FIRMWARE == 0
 int main(int argc, char **argv) {
@@ -25,7 +26,9 @@ void mpc_main() {
 #if USER_INPUT == 1
     .mpc_parties = NULL,
 #endif
-    .member_name = names
+    .member_name = names,
+    .msg_size    = sizeof(msg),
+    .msg         = msg
   };
 
 #if USER_INPUT == 1
@@ -63,17 +66,38 @@ void mpc_main() {
   if (status != MPC_OP_SUCCESS)
     raise_error("MPC Initialization failed", status);
 
+  bn_write_be(&group.mpc_parties[0].fx.fx[2], share);
+  status = mpc_party_verify_commitments(&group.params, &group.mpc_parties[1],
+                                        group.mpc_parties[0].fx.commit, share);
+#if USE_FIRMWARE == 1
+  LOG_CRITICAL("MPC Commitment verification in %lums\n", uwTick - system_clock);
+#endif
+
+  if (status != MPC_OP_VALID_COMMITS)
+    raise_error("MPC Commitment verification failed", status);
+
 #if USE_FIRMWARE == 1
   system_clock = uwTick;
 #endif
-  status =
-      mpc_party_evaluate_poly(&group.params, &group.mpc_parties[0], 2, share);
+  status = mpc_group_presig(&group);
+  verify_k_r(&group);
 #if USE_FIRMWARE == 1
-  LOG_CRITICAL("MPC Polynomial evaluation in %lums\n", uwTick - system_clock);
+  LOG_CRITICAL("MPC Presig evaluation in %lums\n", uwTick - system_clock);
 #endif
 
   if (status != MPC_OP_SUCCESS)
-    raise_error("MPC Polynomial evaluation failed", status);
+    raise_error("MPC Presig evaluation failed", status);
+
+#if USE_FIRMWARE == 1
+  system_clock = uwTick;
+#endif
+  status = mpc_group_generate_sig(&group);
+#if USE_FIRMWARE == 1
+  LOG_CRITICAL("MPC Signature generation in %lums\n", uwTick - system_clock);
+#endif
+
+  if (status != MPC_OP_SUCCESS)
+    raise_error("MPC Signature generation failed", status);
 
 #if USE_FIRMWARE == 1
   system_clock = uwTick;
@@ -83,14 +107,13 @@ void mpc_main() {
   LOG_CRITICAL("MPC Shared key generation in %lums\n", uwTick - system_clock);
   system_clock = uwTick;
 #endif
-  status = mpc_party_verify_commitments(&group.params, &group.mpc_parties[1],
-                                        group.mpc_parties->commitments, share);
-#if USE_FIRMWARE == 1
-  LOG_CRITICAL("MPC Commitment verification in %lums\n", uwTick - system_clock);
-#endif
-
-  if (status != MPC_OP_VALID_COMMITS)
-    raise_error("MPC Commitment verification failed", status);
+  uint8_t sig[64] = {0}, digest[32];
+  bn_write_be(&group.r, sig);
+  bn_write_be(&group.s, sig + 32);
+  bn_write_be(&group.m, digest);
+  if ((status = ecdsa_verify_digest(get_curve_by_name(CURVE_NAME)->params,
+                                    group.public, sig, digest)) != 0)
+    raise_error("MPC Signature did not match", status);
 
 #if USER_INPUT == 1
   free(group.mpc_parties);
