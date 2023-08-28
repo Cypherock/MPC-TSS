@@ -1,10 +1,12 @@
-#include "utils.h"
-#include <process.h>
+#include "mpc_utils.h"
 #include <stdio.h>
+#include <assert.h>
+#include <stdbool.h>
+#if USE_FIRMWARE == 0
+#include "bip39.h"
+#include <process.h>
 #include <stdlib.h>
 #include <string.h>
-#include "assert.h"
-#include "bip39.h"
 
 void printout_struct(void *invar, char *structname) {
   /* dumpstack(void) Got this routine from http://www.whitefang.com/unix/faq_toc.html
@@ -33,7 +35,6 @@ void printout_struct(void *invar, char *structname) {
   sprintf(dbx, "cat dump | grep \"^\\$\" -a");
 #endif
   system(dbx);
-
   return;
 }
 
@@ -61,6 +62,7 @@ void derive_hdnode_from_path(const uint32_t *path,
     hdnode_private_ckd(hdnode, path[i]);
   hdnode_fill_public_key(hdnode);
 }
+#endif
 
 void raise_error(char *msg, int status) {
   printf("[%d] %s\n", status, msg);

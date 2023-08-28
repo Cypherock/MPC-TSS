@@ -12,6 +12,10 @@
 #define USER_INPUT 0
 #endif
 
+#ifndef USE_FIRMWARE
+#define USE_FIRMWARE 0
+#endif
+
 #ifndef VERBOSE
 #define VERBOSE 1
 #endif

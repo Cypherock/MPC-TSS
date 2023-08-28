@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 #include <stdint.h>
+#include "config.h"
+#if USE_FIRMWARE == 0
 #include "bip32.h"
 
 #define print_array(arr, size, ...)              \
@@ -23,6 +25,7 @@ void derive_hdnode_from_path(const uint32_t *path,
                              const char *curve,
                              const uint8_t *entropy,
                              HDNode *hdnode);
+#endif
 
 void raise_error(char *msg, int status);
 

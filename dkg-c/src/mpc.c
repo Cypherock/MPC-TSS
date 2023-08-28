@@ -1,12 +1,16 @@
 #include "mpc.h"
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "crypto_random.h"
 #include "memzero.h"
+#include "mpc_utils.h"
+#if USE_FIRMWARE == 1
+#include "wallet.h"
+#include "coin_utils.h"
 #include "utils.h"
+#endif
 
 char title[100]             = "";
 const uint32_t DERVN_PATH[] = {100, 100};
@@ -16,8 +20,11 @@ MPC_STATUS mpc_init_group(mpc_group *group) {
     return MPC_OP_WRONG_PARAM;
 
   MPC_STATUS status;
+  uint32_t system_clock;
 
+#if USE_FIRMWARE == 0
   srand(time(NULL));
+#endif
 #if USER_INPUT == 1
   group->mpc_parties =
       (mpc_party *)malloc(group->member_count * sizeof(mpc_party));
@@ -30,12 +37,22 @@ MPC_STATUS mpc_init_group(mpc_group *group) {
 
   for (int index = 0; index < group->params.member_count; index++) {
     mpc_party *party = &group->mpc_parties[index];
+#if USE_FIRMWARE == 1
+    system_clock = uwTick;
+#endif
     if ((status = mpc_init_party(&group->params, party, index + 1,
                                  group->member_name[index])) != MPC_OP_SUCCESS)
       return status;
+#if USE_FIRMWARE == 1
+    LOG_CRITICAL("MPC Party init in %lums\n", uwTick - system_clock);
+    system_clock = uwTick;
+#endif
     if ((status = mpc_party_calculate_commitments(&group->params, party)) !=
         MPC_OP_SUCCESS)
       return status;
+#if USE_FIRMWARE == 1
+      LOG_CRITICAL("MPC Commitment calculation in %lums\n", uwTick - system_clock);
+#endif
 
 #if USER_INPUT == 1
 #if VERBOSE == 1
@@ -105,8 +122,8 @@ MPC_STATUS mpc_party_calculate_commitments(mpc_config *params,
   if (params == NULL || party == NULL)
     return MPC_OP_WRONG_PARAM;
 
-  const ecdsa_curve *curve     = get_curve_by_name(CURVE_NAME)->params;
-  uint8_t commitment[33] = {0};
+  const ecdsa_curve *curve = get_curve_by_name(CURVE_NAME)->params;
+  uint8_t commitment[33]   = {0};
   // uint8_t public[65]     = {0};
 #if USER_INPUT == 1
   size_t commitments_storage_size =
@@ -116,31 +133,16 @@ MPC_STATUS mpc_party_calculate_commitments(mpc_config *params,
 #endif
 
   // calculate commitment for secret
-  bignum256 k; bn_read_be(party->node.private_key, &k);
-  point_multiply(curve, &k, &curve->G,
-                 &party->commitments[0]);
-  // ecdsa_get_public_key33(get_curve_by_name(CURVE_NAME)->params,
-  //                        party->node.private_key, commitment);
-  // if (commitment[0] == 0)
-  //   return MPC_OP_INVALID_DATA;
-  // else
-  //   memcpy(&party->commitments[0], &commitment[1],
-  //          sizeof(party->commitments[0]));
+  bignum256 k;
+  bn_read_be(party->node.private_key, &k);
+  point_multiply(curve, &k, &curve->G, &party->commitments[0]);
 
   for (int i = 1; i <= params->threshold; i++) {
     memset(commitment, 0, sizeof(commitment));
 
     // calculate commitment for all coefficients
     bn_read_be(party->polynomial[i - 1], &k);
-    point_multiply(curve, &k, &curve->G,
-                   &party->commitments[i]);
-    // ecdsa_get_public_key33(get_curve_by_name(CURVE_NAME)->params,
-    //                        party->polynomial[i - 1], commitment);
-    // if (commitment[0] == 0)
-    //   return MPC_OP_INVALID_DATA;
-    // else
-    //   memcpy(&party->commitments[i], &commitment[1],
-    //          sizeof(party->commitments[i]));
+    point_multiply(curve, &k, &curve->G, &party->commitments[i]);
   }
 
   return MPC_OP_SUCCESS;
@@ -172,7 +174,6 @@ MPC_STATUS mpc_party_evaluate_poly(mpc_config *params,
 #endif
     // y += ( ai * (x ^ (i+1)) )
     bn_read_be(party->polynomial[i], &term);
-    // printf("term = %llu; x = %llu; ", bn_write_uint64(&term), bn_write_uint64(&x));
     bn_multiply(&x, &term, &get_curve_by_name(CURVE_NAME)->params->order);
     bn_addmod(&fx, &term, &get_curve_by_name(CURVE_NAME)->params->order);
 
@@ -186,7 +187,6 @@ MPC_STATUS mpc_party_evaluate_poly(mpc_config *params,
     // calculate next power of index (i.e. x = index * x)
     bn_multiply(&index, &x, &get_curve_by_name(CURVE_NAME)->params->order);
   }
-  // printf("fx = %llu\n", bn_write_uint64(&fx));
   bn_write_be(&fx, share);
 
 #if VERBOSE == 1
@@ -241,13 +241,13 @@ MPC_STATUS mpc_party_verify_commitments(mpc_config *params,
     printf("\npower = %d^%d = %llu", self->id, i, bn_write_uint64(&pow));
     print_array((uint8_t *)&term, sizeof(term), "\n[%s] term^(%llu)", __func__,
                 bn_write_uint64(&pow));
-    print_array((uint8_t *)&commit_res, sizeof(commit_res), "\n[%s] commit_res^(%llu)", __func__,
-                bn_write_uint64(&pow));
+    print_array((uint8_t *)&commit_res, sizeof(commit_res),
+                "\n[%s] commit_res^(%llu)", __func__, bn_write_uint64(&pow));
 #endif
   }
 
 #if VERBOSE == 1
-  print_array((uint8_t *) &g_share, sizeof(g_share), "\n[%s] g_share", __func__);
+  print_array((uint8_t *)&g_share, sizeof(g_share), "\n[%s] g_share", __func__);
 #endif
 
   if (memcmp(&commit_res, &g_share, sizeof(g_share)) == 0)
@@ -278,13 +278,15 @@ void mpc_group_generate_shared_keypair(mpc_group *group) {
   }
   bn_write_be(&result.x, public + 1);
   bn_write_be(&result.y, public + 33);
+#if USE_FIRMWARE == 0
   print_hex_array("private", shared_private, 32);
   print_hex_array("public65", shared_public, 65);
   print_hex_array("public", public, 65);
+#endif
 }
 
 // ECDSA multiply; g^k; private to public
-void private_to_public_key(uint8_t *private, uint8_t *public_65) {
+void private_to_public_key(const uint8_t *private, uint8_t *public_65) {
   curve_point R = {0}, temp = {0};
 
   const ecdsa_curve *curve = get_curve_by_name(CURVE_NAME)->params;

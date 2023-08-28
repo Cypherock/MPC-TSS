@@ -45,6 +45,10 @@ typedef enum MPC_STATUS {
   MPC_OP_OVERFLOW        = 6,
 } MPC_STATUS;
 
+#if USE_FIRMWARE == 1
+void mpc_main();
+#endif
+
 MPC_STATUS mpc_init_group(mpc_group *group);
 
 MPC_STATUS mpc_init_party(mpc_config *params,
@@ -67,7 +71,7 @@ MPC_STATUS mpc_party_verify_commitments(mpc_config *params,
                                         curve_point *coeff_commits,
                                         uint8_t *share);
 
-void private_to_public_key(uint8_t *private, uint8_t *public_65);
+void private_to_public_key(const uint8_t *private, uint8_t *public_65);
 
 void mpc_group_generate_shared_keypair(mpc_group *group);
 
