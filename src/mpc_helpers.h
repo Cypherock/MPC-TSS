@@ -40,12 +40,4 @@ void lagarange_interpolate(const ecdsa_curve *curve,
                            uint8_t threshold,
                            bignum256 *result);
 
-void ot_calculate_shares(const ecdsa_curve *curve,
-                         bignum256 *x,
-                         bignum256 *y,
-                         bignum256 *U,
-                         bignum256 *V,
-                         bignum256 *a,
-                         bignum256 *b,
-                         curve_point *A);
 #endif
