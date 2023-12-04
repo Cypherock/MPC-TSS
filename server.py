@@ -44,7 +44,13 @@ def storeGroupInfo():
     if groupID in gid_db:
         gid_db[groupID]['signatures'][pubKey] = signature
     else:
-        gid_db[groupID] = {'groupInfo': groupInfo, 'signatures': {pubKey: signature}, 'shares': {}}
+        gid_db[groupID] = {
+            'groupInfo': groupInfo, 
+            'signatures': {pubKey: signature}, 
+            'shareDataStore': {},
+            'individualPublicKey': {},
+            'groupKeyInfoStore': {},
+        }
 
     return jsonify({}), 200
 
@@ -66,6 +72,84 @@ def getGroupInfo():
 def getGroupID():
     pubKey = request.args.get('pubKey')
     return jsonify(pub_to_gid.get(pubKey, [])), 200
+
+@app.route('/shareData', methods=['POST'])
+def storeShareData():
+    groupID = request.json.get('groupID')
+    shareData = request.json.get('shareData')
+    pubKey = request.json.get('pubKey')
+
+    if groupID in gid_db:
+        gid_db[groupID]['shareDataStore'][pubKey] = shareData
+    else:
+        return jsonify({}), 404
+
+    return jsonify({}), 200
+
+@app.route('/shareData', methods=['GET'])
+def getShareData():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+
+    if groupID in gid_db:
+        if pubKey not in gid_db[groupID]['shareDataStore']:
+            return jsonify({}), 404
+
+        return jsonify({'shareData': gid_db[groupID]['shareDataStore'][pubKey]}), 200
+    else:
+        return jsonify({}), 404
+
+@app.route('/individualPublicKey', methods=['POST'])
+def storeIndividualPublicKey():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    individualPublicKey = request.json.get('individualPublicKey')
+
+    if groupID in gid_db:
+        gid_db[groupID]['individualPublicKey'][pubKey] = individualPublicKey
+    else:
+        return jsonify({}), 404
+
+    return jsonify({}), 200
+
+@app.route('/individualPublicKey', methods=['GET'])
+def getIndividualPublicKey():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+
+    if groupID in gid_db:
+        if pubKey not in gid_db[groupID]['individualPublicKey']:
+            return jsonify({}), 404
+
+        return jsonify({'individualPublicKey': gid_db[groupID]['individualPublicKey'][pubKey]}), 200
+    else:
+        return jsonify({}), 404
+
+@app.route('/groupKeyInfo', methods=['POST'])
+def storeGroupKeyInfo():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    groupKeyInfo = request.json.get('groupKeyInfo')
+
+    if groupID in gid_db:
+        gid_db[groupID]['groupKeyInfoStore'][pubKey] = groupKeyInfo
+    else:
+        return jsonify({}), 404
+
+    return jsonify({}), 200
+
+@app.route('/groupKeyInfo', methods=['GET'])
+def getGroupKeyInfo():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+
+    if groupID in gid_db:
+        if pubKey not in gid_db[groupID]['groupKeyInfoStore']:
+            return jsonify({}), 404
+
+        return jsonify({'groupKeyInfo': gid_db[groupID]['groupKeyInfoStore'][pubKey]}), 200
+    else:
+        return jsonify({}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
