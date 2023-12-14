@@ -29,6 +29,10 @@ def getEntityInfo():
     fingerprint = request.args.get('fingerprint')
     return jsonify(fp_to_entity_info.get(fingerprint, '')), 200
 
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({}), 200
+
 @app.route('/groupInfo', methods=['POST'])
 def storeGroupInfo():
     groupID = request.json.get('groupID')
@@ -50,6 +54,7 @@ def storeGroupInfo():
             'shareDataStore': {},
             'individualPublicKey': {},
             'groupKeyInfoStore': {},
+            'shareStore': {},
         }
 
     return jsonify({}), 200
@@ -130,9 +135,10 @@ def storeGroupKeyInfo():
     groupID = request.json.get('groupID')
     pubKey = request.json.get('pubKey')
     groupKeyInfo = request.json.get('groupKeyInfo')
+    signature = request.json.get('signature')
 
     if groupID in gid_db:
-        gid_db[groupID]['groupKeyInfoStore'][pubKey] = groupKeyInfo
+        gid_db[groupID]['groupKeyInfoStore'][pubKey] = {'groupKeyInfo': groupKeyInfo, 'signature': signature}
     else:
         return jsonify({}), 404
 
@@ -147,9 +153,35 @@ def getGroupKeyInfo():
         if pubKey not in gid_db[groupID]['groupKeyInfoStore']:
             return jsonify({}), 404
 
-        return jsonify({'groupKeyInfo': gid_db[groupID]['groupKeyInfoStore'][pubKey]}), 200
+        return jsonify(gid_db[groupID]['groupKeyInfoStore'][pubKey]), 200
+    else:
+        return jsonify({}), 404
+
+@app.route('/share', methods=['POST'])
+def storeShare():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    share = request.json.get('share')
+
+    if groupID in gid_db:
+        gid_db[groupID]['shareStore'][pubKey] = share
+    else:
+        return jsonify({}), 404
+
+    return jsonify({}), 200
+
+@app.route('/share', methods=['GET'])
+def getShare():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+
+    if groupID in gid_db:
+        if pubKey not in gid_db[groupID]['shareStore']:
+            return jsonify({}), 404
+
+        return jsonify({'share': gid_db[groupID]['shareStore'][pubKey]}), 200
     else:
         return jsonify({}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
