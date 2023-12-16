@@ -8,6 +8,7 @@ app = Flask(__name__)
 fp_to_entity_info = {}
 pub_to_gid = {}
 gid_db = {}
+msg_hash_to_msg = {}
 
 
 def compute_fingerprint(entity_info):
@@ -55,6 +56,7 @@ def storeGroupInfo():
             'individualPublicKey': {},
             'groupKeyInfoStore': {},
             'shareStore': {},
+            'messageStore': {},
         }
 
     return jsonify({}), 200
@@ -182,6 +184,59 @@ def getShare():
         return jsonify({'share': gid_db[groupID]['shareStore'][pubKey]}), 200
     else:
         return jsonify({}), 404
+
+@app.route('/message', methods=['POST'])
+def storeMessage():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    msg = request.json.get('msg')
+
+    msgHash = hashlib.sha256(bytes.fromhex(msg)).hexdigest()
+    msg_hash_to_msg[msgHash] = msg
+
+    if groupID in gid_db:
+        gid_db[groupID]['messageStore'][msgHash] = {'initiator': pubKey, 'msg': msg, 'parties': [], 'data': {}}
+    else:
+        return jsonify({}), 404
+
+    return jsonify({'msgHash': msgHash}), 200
+
+@app.route('/message', methods=['GET'])
+def getMessage():
+    groupID = request.args.get('groupID')
+
+    if groupID in gid_db:
+        return jsonify([{
+            'msgHash': msgHash, 
+            'parties': len(gid_db[groupID]['messageStore'][msgHash]['parties'])
+        } for msgHash in gid_db[groupID]['messageStore']])
+    else:
+        return jsonify({}), 404
+
+@app.route('/messageHash', methods=['GET'])
+def getMessageHash():
+    msgHash = request.args.get('msgHash')
+    return jsonify(msg_hash_to_msg.get(msgHash, '')), 200
+
+# route to add pubKey to messageStore given a groupID, pubKey and msgHash
+@app.route('/approveMessage', methods=['POST'])
+def approveMessage():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    msgHash = request.json.get('msgHash')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey not in gid_db[groupID]['messageStore'][msgHash]['parties']:
+                gid_db[groupID]['messageStore'][msgHash]['parties'].append(pubKey)
+            else:
+                return jsonify({}), 200
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+
+    return jsonify({}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
