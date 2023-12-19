@@ -55,7 +55,6 @@ def storeGroupInfo():
             'shareDataStore': {},
             'individualPublicKey': {},
             'groupKeyInfoStore': {},
-            'shareStore': {},
             'messageStore': {},
         }
 
@@ -74,7 +73,6 @@ def getGroupInfo():
         return jsonify({}), 404
 
 
-# route to get group ids from pub key
 @app.route('/groupID', methods=['GET'])
 def getGroupID():
     pubKey = request.args.get('pubKey')
@@ -159,32 +157,6 @@ def getGroupKeyInfo():
     else:
         return jsonify({}), 404
 
-@app.route('/share', methods=['POST'])
-def storeShare():
-    groupID = request.json.get('groupID')
-    pubKey = request.json.get('pubKey')
-    share = request.json.get('share')
-
-    if groupID in gid_db:
-        gid_db[groupID]['shareStore'][pubKey] = share
-    else:
-        return jsonify({}), 404
-
-    return jsonify({}), 200
-
-@app.route('/share', methods=['GET'])
-def getShare():
-    groupID = request.args.get('groupID')
-    pubKey = request.args.get('pubKey')
-
-    if groupID in gid_db:
-        if pubKey not in gid_db[groupID]['shareStore']:
-            return jsonify({}), 404
-
-        return jsonify({'share': gid_db[groupID]['shareStore'][pubKey]}), 200
-    else:
-        return jsonify({}), 404
-
 @app.route('/message', methods=['POST'])
 def storeMessage():
     groupID = request.json.get('groupID')
@@ -195,7 +167,15 @@ def storeMessage():
     msg_hash_to_msg[msgHash] = msg
 
     if groupID in gid_db:
-        gid_db[groupID]['messageStore'][msgHash] = {'initiator': pubKey, 'msg': msg, 'parties': [], 'data': {}}
+        gid_db[groupID]['messageStore'][msgHash] = {
+            'initiator': pubKey, 
+            'msg': msg, 
+            'parties': [], 
+            'data': {
+                'shareDataListStore': {},
+                'QIListStore': {},
+                'keyInfoListStore': {},
+            }}
     else:
         return jsonify({}), 404
 
@@ -218,7 +198,6 @@ def getMessageHash():
     msgHash = request.args.get('msgHash')
     return jsonify(msg_hash_to_msg.get(msgHash, '')), 200
 
-# route to add pubKey to messageStore given a groupID, pubKey and msgHash
 @app.route('/approveMessage', methods=['POST'])
 def approveMessage():
     groupID = request.json.get('groupID')
@@ -237,6 +216,138 @@ def approveMessage():
         return jsonify({}), 404
 
     return jsonify({}), 200
+
+@app.route('/sign/parties', methods=['GET'])
+def getParties():
+    groupID = request.args.get('groupID')
+    msgHash = request.args.get('msgHash')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            return jsonify(gid_db[groupID]['messageStore'][msgHash]['parties']), 200
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+
+@app.route('/sign/shareDataList', methods=['POST'])
+def postShareDataList():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    msgHash = request.json.get('msgHash')
+    shareDataList = request.json.get('shareDataList')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['parties']:
+                gid_db[groupID]['messageStore'][msgHash]['data']['shareDataListStore'][pubKey] = shareDataList
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
+@app.route('/sign/shareDataList', methods=['GET'])
+def getShareDataList():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+    msgHash = request.args.get('msgHash')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['data']['shareDataListStore']:
+                return jsonify(gid_db[groupID]['messageStore'][msgHash]['data']['shareDataListStore'][pubKey]), 200
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
+@app.route('/sign/QIList', methods=['POST'])
+def postQIList():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    msgHash = request.json.get('msgHash')
+    QIList = request.json.get('QIList')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['parties']:
+                gid_db[groupID]['messageStore'][msgHash]['data']['QIListStore'][pubKey] = QIList
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
+@app.route('/sign/QIList', methods=['GET'])
+def getQIList():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+    msgHash = request.args.get('msgHash')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['data']['QIListStore']:
+                return jsonify(gid_db[groupID]['messageStore'][msgHash]['data']['QIListStore'][pubKey]), 200
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
+@app.route('/sign/keyInfoList', methods=['POST'])
+def postKeyInfoList():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    msgHash = request.json.get('msgHash')
+    keyInfoList = request.json.get('keyInfoList')
+    signatureList = request.json.get('signatureList')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['parties']:
+                gid_db[groupID]['messageStore'][msgHash]['data']['keyInfoListStore'][pubKey] = {'keyInfoList': keyInfoList, 'signatureList': signatureList}
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
+@app.route('/sign/keyInfoList', methods=['GET'])
+def getKeyInfoList():
+    groupID = request.args.get('groupID')
+    pubKey = request.args.get('pubKey')
+    msgHash = request.args.get('msgHash')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['data']['keyInfoListStore']:
+                return jsonify(gid_db[groupID]['messageStore'][msgHash]['data']['keyInfoListStore'][pubKey]), 200
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
