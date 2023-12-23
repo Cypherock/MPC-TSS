@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import hashlib
 import json
+import os
 
 app = Flask(__name__)
 
@@ -24,6 +25,40 @@ def storeEntityInfo():
     fp_to_entity_info[fingerprint] = entity_info
 
     return jsonify({}), 200
+
+@app.route('/dumpData', methods=['GET'])
+def dumpData():
+    with open('fp_to_entity_info.json', 'w') as file:
+        json.dump(fp_to_entity_info, file)
+    with open('pub_to_gid.json', 'w') as file:
+        json.dump(pub_to_gid, file)
+    with open('gid_db.json', 'w') as file:
+        json.dump(gid_db, file)
+    with open('msg_hash_to_msg.json', 'w') as file:
+        json.dump(msg_hash_to_msg, file)
+
+    return jsonify({'message': 'Data dumped successfully'}), 200
+
+@app.route('/loadData', methods=['GET'])
+def loadData():
+    if os.path.exists('fp_to_entity_info.json'):
+        with open('fp_to_entity_info.json', 'r') as file:
+            global fp_to_entity_info
+            fp_to_entity_info = json.load(file)
+    if os.path.exists('pub_to_gid.json'):
+        with open('pub_to_gid.json', 'r') as file:
+            global pub_to_gid
+            pub_to_gid = json.load(file)
+    if os.path.exists('gid_db.json'):
+        with open('gid_db.json', 'r') as file:
+            global gid_db
+            gid_db = json.load(file)
+    if os.path.exists('msg_hash_to_msg.json'):
+        with open('msg_hash_to_msg.json', 'r') as file:
+            global msg_hash_to_msg
+            msg_hash_to_msg = json.load(file)
+
+    return jsonify({'message': 'Data loaded successfully'}), 200
 
 @app.route('/entityInfo', methods=['GET'])
 def getEntityInfo():
