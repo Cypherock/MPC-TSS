@@ -210,6 +210,10 @@ def storeMessage():
                 'shareDataListStore': {},
                 'QIListStore': {},
                 'keyInfoListStore': {},
+                'rcvPkInfoListStore': [],
+                'sndPkInfoListStore': [],
+                'rcvEncMsgListStore': [],
+                'sndMascotListStore': [],
             }}
     else:
         return jsonify({}), 404
@@ -383,6 +387,47 @@ def getKeyInfoList():
     
     return jsonify({}), 200
 
+@app.route('/sign/mtaData', methods=['POST'])
+def postMtaData():
+    groupID = request.json.get('groupID')
+    pubKey = request.json.get('pubKey')
+    msgHash = request.json.get('msgHash')
+    mtaData = request.json.get('mtaData')
+    mtaDataType = request.json.get('mtaDataType')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            if pubKey in gid_db[groupID]['messageStore'][msgHash]['parties']:
+                gid_db[groupID]['messageStore'][msgHash]['data'][mtaDataType].append(mtaData)
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
+    
+    return jsonify({}), 200
+
+@app.route('/sign/mtaData', methods=['GET'])
+def getMtaData():
+    groupID = request.args.get('groupID')
+    to = request.args.get('to')
+    length = request.args.get('length')
+    msgHash = request.args.get('msgHash')
+    mtaDataType = request.args.get('mtaDataType')
+
+    if groupID in gid_db:
+        if msgHash in gid_db[groupID]['messageStore']:
+            mtaDataList = [mtaData for mtaData in gid_db[groupID]['messageStore'][msgHash]['data'][mtaDataType] if mtaData['to'] == to]
+            
+            if len(mtaDataList) >= int(length):
+                return jsonify(mtaDataList), 200
+            else:
+                return jsonify({}), 404
+        else:
+            return jsonify({}), 404
+    else:
+        return jsonify({}), 404
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
