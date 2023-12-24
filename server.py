@@ -394,12 +394,12 @@ def getKeyInfoList():
 def postMtaData():
     groupID = request.json.get('groupID')
     msgHash = request.json.get('msgHash')
-    mtaData = request.json.get('mtaData')
+    mtaDataList = request.json.get('mtaDataList')
     mtaDataType = request.json.get('mtaDataType')
 
     if groupID in gid_db:
         if msgHash in gid_db[groupID]['messageStore']:
-            gid_db[groupID]['messageStore'][msgHash]['data'][mtaDataType].append(mtaData)
+            gid_db[groupID]['messageStore'][msgHash]['data'][mtaDataType] += mtaDataList
         else:
             return jsonify({}), 404
     else:
