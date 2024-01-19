@@ -1,0 +1,8 @@
+[submodule "vault"]
+	path = vault
+	url = https://github.com/Cypherock/x1_wallet_firmware.git
+	branch = feat/mpc-app
+[submodule "sdk"]
+	path = sdk
+	url = https://github.com/Cypherock/sdk.git
+	branch = feat/mpc-app
