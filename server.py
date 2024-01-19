@@ -395,6 +395,7 @@ def postMtaData():
     groupID = request.json.get('groupID')
     msgHash = request.json.get('msgHash')
     mtaDataList = request.json.get('mtaDataList')
+    print(mtaDataList)
     mtaDataType = request.json.get('mtaDataType')
 
     if groupID in gid_db:
@@ -417,7 +418,7 @@ def getMtaData():
 
     if groupID in gid_db:
         if msgHash in gid_db[groupID]['messageStore']:
-            mtaDataList = [mtaData for mtaData in gid_db[groupID]['messageStore'][msgHash]['data'][mtaDataType] if mtaData['to'] == to]
+            mtaDataList = [mtaData for mtaData in gid_db[groupID]['messageStore'][msgHash]['data'][mtaDataType] if mtaData['to'] == int(to)]
             
             if len(mtaDataList) >= int(length):
                 return jsonify(mtaDataList), 200
