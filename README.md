@@ -6,7 +6,7 @@ The setting comprises of 3 sub-processes running independent MPC group sessions 
 2. Distributed key generation <br/> Generates child public keys for the group
 3. Transaction signing <br/> Sign ECDSA based transactions 
 
-# DEMO 
+# Watch demo :  
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=wue8B2U0vGA
 " target="_blank"><img src="http://img.youtube.com/vi/wue8B2U0vGA/0.jpg" 
-alt="DEMO" width="240" height="180" border="10" /></a>
+alt="DEMO" width="480" height="360" border="10" /></a>
