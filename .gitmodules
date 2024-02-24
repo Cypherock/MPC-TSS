@@ -6,3 +6,9 @@
 	path = sdk
 	url = https://github.com/Cypherock/sdk.git
 	branch = feat/mpc-app
+[submodule "zk-snark"]
+	path = zk-snark
+	url = git@github.com:xevisalle/zpie.git
+[submodule "class-groups"]
+	path = class-groups
+	url = https://gite.lirmm.fr/crypto/bicycl.git
